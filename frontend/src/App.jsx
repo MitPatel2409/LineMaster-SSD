@@ -4,7 +4,9 @@ import Dashboard from './components/Dashboard';
 import ResultsPanel from './components/ResultsPanel';
 import { ASSUMPTION_DEFAULTS } from './constants/assumptions';
 
-const API_URL = 'http://localhost:5000/api/simulate';
+const API_URL = import.meta.env.PROD 
+  ? '/api/simulate' 
+  : 'http://localhost:5000/api/simulate';
 const REQUEST_TIMEOUT_MS = 12000;
 
 function App() {
