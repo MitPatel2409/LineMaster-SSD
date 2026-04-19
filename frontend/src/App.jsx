@@ -1,48 +1,133 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './index.css';
 import Dashboard from './components/Dashboard';
 import ResultsPanel from './components/ResultsPanel';
+import { ASSUMPTION_DEFAULTS } from './constants/assumptions';
+
+const API_URL = 'http://localhost:5000/api/simulate';
+const REQUEST_TIMEOUT_MS = 12000;
 
 function App() {
   const [simulationResult, setSimulationResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastParams, setLastParams] = useState(null);
+
+  // 'input' | 'results'
+  const [activePage, setActivePage] = useState('input');
+  const [assumptions, setAssumptions] = useState(() => ({ ...ASSUMPTION_DEFAULTS }));
+  const requestControllerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (requestControllerRef.current) {
+        requestControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const runSimulation = async (params) => {
+    const requestPayload = {
+      ...params,
+      assumptions,
+    };
+
     setLoading(true);
     setError(null);
+    setLastParams(requestPayload);
+    setActivePage('results');
+
+    if (requestControllerRef.current) {
+      requestControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     try {
-      const response = await fetch('http://localhost:5000/api/simulate', {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(params),
+        body: JSON.stringify(requestPayload),
+        signal: controller.signal,
       });
-      
+
+      const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error('Simulation failed');
+        const message = payload?.message || payload?.error || `Simulation failed with status ${response.status}.`;
+        throw new Error(message);
       }
-      
-      const data = await response.json();
-      setSimulationResult(data);
+
+      setSimulationResult(payload);
     } catch (err) {
-      setError(err.message);
+      if (err.name === 'AbortError') {
+        setError('Request timed out after 12 seconds. Check backend status and try again.');
+      } else if (err instanceof TypeError) {
+        setError('Unable to reach backend at http://localhost:5000. Start backend/app.py and retry.');
+      } else {
+        setError(err.message || 'Simulation failed. Please retry.');
+      }
     } finally {
+      window.clearTimeout(timeoutId);
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+      }
       setLoading(false);
     }
   };
 
+  const handleRetry = () => {
+    if (lastParams) {
+      runSimulation(lastParams);
+    }
+  };
+
+  const handleReset = () => {
+    setSimulationResult(null);
+    setError(null);
+    setActivePage('input');
+  };
+
   return (
     <div className="app-container">
-      <header style={{ padding: '24px 40px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--primary)', boxShadow: '0 0 15px var(--primary-glow)' }}></div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: '700', letterSpacing: '-0.5px' }}>LineMaster<span style={{ color: 'var(--primary)' }}>SSD</span></h1>
+      <header className="app-header">
+        <div className="app-logo-mark" aria-hidden="true"></div>
+        <div className="app-header-content">
+          <h1 className="app-title">
+            LineMaster<span>SSD</span>
+          </h1>
+          <p className="app-subtitle">Simulation-driven shift planning for Sub Same Day operations</p>
+        </div>
       </header>
-      
-      <main className="dashboard-grid">
-        <Dashboard onSimulate={runSimulation} loading={loading} />
-        <ResultsPanel result={simulationResult} error={error} />
+
+      <main className="main-content-flow">
+        {activePage === 'input' && (
+          <div className="centered-form-container">
+            <Dashboard
+              onSimulate={runSimulation}
+              loading={loading}
+              onReset={handleReset}
+              assumptions={assumptions}
+              onSaveAssumptions={setAssumptions}
+              onResetAssumptions={() => setAssumptions({ ...ASSUMPTION_DEFAULTS })}
+            />
+          </div>
+        )}
+
+        {activePage === 'results' && (
+          <div className="centered-results-container">
+            <ResultsPanel
+              result={simulationResult}
+              error={error}
+              loading={loading}
+              onRetry={handleRetry}
+              onReset={handleReset}
+            />
+          </div>
+        )}
       </main>
     </div>
   );

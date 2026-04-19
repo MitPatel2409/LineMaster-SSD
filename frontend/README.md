@@ -1,16 +1,41 @@
-# React + Vite
+# LineMaster SSD Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite interface for simulation-driven shift planning.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Install dependencies:
 
-## React Compiler
+```bash
+npm install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. Start the dev server:
 
-## Expanding the ESLint configuration
+```bash
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3. Open the app at `http://localhost:5173`.
+
+## Required Backend
+
+The UI expects the Flask API at `http://localhost:5000/api/simulate`.
+
+If the backend is not running, the UI now shows an explicit connection error with retry options.
+
+## Build and Lint
+
+```bash
+npm run lint
+npm run build
+```
+
+## Usability Improvements Implemented
+
+- Field-level input validation with accessible errors.
+- Better loading feedback and timeout handling.
+- Actionable API error messaging with retry/reset controls.
+- Responsive form and result layouts for desktop/tablet/mobile.
+- Copy-to-clipboard support for the generated action plan.
+- Dynamics page with advanced controls for adjusting simulation assumptions.
